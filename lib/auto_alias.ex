@@ -22,7 +22,7 @@ defmodule AutoAlias do
         &read_aliases/2
       )
 
-    {_updated, acc} = Macro.prewalk(ast, aliases, &use_aliases/2)
+    {_updated, acc} = Macro.prewalk(ast, aliases, &apply_aliases/2)
     acc
   end
 
@@ -37,7 +37,8 @@ defmodule AutoAlias do
         subs = Enum.map(items, fn sub -> "-e#{sub}" end)
         # IO.inspect(subs, label: "sed commands")
         {result, 0} = System.cmd("sed", Enum.concat(subs, [f]))
-        File.write!(name, result)
+        IO.inspect(name, label: "name")
+        File.write!(name, result, [:write])
     end
   end
 
@@ -60,7 +61,7 @@ defmodule AutoAlias do
     String.split(alias_path, ".") |> Enum.map(&String.to_atom/1)
   end
 
-  def use_aliases({:defmodule, _, [{:__aliases__, meta, _}, _]} = module, acc) do
+  def apply_aliases({:defmodule, _, [{:__aliases__, meta, _}, _]} = module, acc) do
     case Map.get(acc, meta[:line]) do
       nil ->
         {module, acc}
@@ -71,13 +72,27 @@ defmodule AutoAlias do
     end
   end
 
-  def use_aliases(node, acc) do
+  def apply_aliases(node, acc) do
     {node, acc}
   end
 
-  def apply_alias({:., dot_meta, [{:__aliases__, _, a}, f]} = node, {acc, alias_list}) do
-    # IO.puts("checking #{inspect(a)}.#{f} vs #{inspect(alias_list)}, #{a in alias_list}")
+  def apply_alias({:., dot_meta, [{:__aliases__, _, a}, _]} = node, {acc, alias_list}) do
+    if a in alias_list do
+      full_path = Enum.join(a, ".")
+      new_path = List.last(a) |> Atom.to_string()
 
+      acc =
+        update_in(acc, [:substitutions], fn l ->
+          ["#{dot_meta[:line]}s/#{full_path}/#{new_path}/" | l]
+        end)
+
+      {node, {acc, alias_list}}
+    else
+      {node, {acc, alias_list}}
+    end
+  end
+
+  def apply_alias({:%, dot_meta, [{:__aliases__, _, a}, _]} = node, {acc, alias_list}) do
     if a in alias_list do
       full_path = Enum.join(a, ".")
       new_path = List.last(a) |> Atom.to_string()
