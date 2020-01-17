@@ -3,15 +3,6 @@ defmodule AutoAlias do
   Documentation for AutoAlias.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> AutoAlias.hello()
-      :world
-
-  """
   def read(name \\ "lib/sample.ex") do
     {:ok, ast} = Code.string_to_quoted(File.read!(name))
 
@@ -26,7 +17,7 @@ defmodule AutoAlias do
     acc
   end
 
-  def format(name \\ "lib/sample.ex") do
+  def format(name \\ "lib/sample.ex", write) do
     %{file_name: f, substitutions: s} = read(name)
 
     case s do
@@ -37,8 +28,12 @@ defmodule AutoAlias do
         subs = Enum.map(items, fn sub -> "-e#{sub}" end)
         # IO.inspect(subs, label: "sed commands")
         {result, 0} = System.cmd("sed", Enum.concat(subs, [f]))
-        IO.inspect(name, label: "name")
-        File.write!(name, result, [:write])
+
+        if write do
+          File.write!(name, result, [:write])
+        else
+          IO.puts(result)
+        end
     end
   end
 
