@@ -78,7 +78,7 @@ defmodule AutoAlias do
 
       acc =
         update_in(acc, [:substitutions], fn l ->
-          ["#{dot_meta[:line]}s/#{full_path}/#{new_path}/" | l]
+          ["#{dot_meta[:line]}s/#{full_path}/#{new_path}/g" | l]
         end)
 
       {node, {acc, alias_list}}
